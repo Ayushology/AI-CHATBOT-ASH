@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import "../styles/ChatScreen.css";
+import { io } from "socket.io-client";
 
 export default function ChatScreen() {
+  const [socket, setSocket] = useState(null);
   const [messages, setMessages] = useState([
     {
       id: "1",
@@ -18,30 +20,56 @@ export default function ChatScreen() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isLoading]);
 
+  useEffect(() => {
+    // Initialize socket connection
+    const socketInstance = io("http://localhost:3000");
+    setSocket(socketInstance);
+
+    // Listen for AI responses from the server
+    socketInstance.on("ai-message-response", (message) => {
+      // Safely handle whether the backend sends a plain string or an object {response: "..."}
+      const responseText = typeof message === "object" ? message.response : message;
+
+      const modelMessage = {
+        id: Date.now().toString(),
+        role: "model", 
+        text: responseText || "I've received your message, but the response was empty.",
+        timestamp: new Date().toISOString(),
+      };
+      
+      setMessages((prev) => [...prev, modelMessage]);
+      setIsLoading(false);
+    });
+
+    return () => {
+      socketInstance.disconnect();
+    };
+  }, []);
+
   const handleSendMessage = () => {
     if (!inputValue.trim()) return;
 
+    const messageText = inputValue.trim();
     const userMessage = {
       id: Date.now().toString(),
       role: "user",
-      text: inputValue.trim(),
+      text: messageText,
       timestamp: new Date().toISOString(),
     };
 
+    // Update UI with user message
     setMessages((prev) => [...prev, userMessage]);
     setInputValue("");
     setIsLoading(true);
 
-    setTimeout(() => {
-      const modelMessage = {
-        id: (Date.now() + 1).toString(),
-        role: "model",
-        text: "I've received your message. I am a simulated response in this new interface design!",
-        timestamp: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, modelMessage]);
+    // Emit the message to the backend via Socket.io
+    if (socket) {
+      // MATCHES BACKEND: socket.on("ai-message", ...)
+      socket.emit("ai-message", messageText); 
+    } else {
+      console.error("Socket is not connected");
       setIsLoading(false);
-    }, 1500);
+    }
   };
 
   const handleKeyPress = (e) => {
@@ -58,7 +86,7 @@ export default function ChatScreen() {
         <div className="top-bar-content">
           <div className="brand">
             <div className="status-dot"></div>
-            <h1>ash</h1>
+            <h1>Ash</h1>
           </div>
           <div className="header-actions">
             <span className="badge">AI Powered</span>
@@ -77,10 +105,15 @@ export default function ChatScreen() {
               {msg.role === "model" && (
                 <div className="avatar model-avatar">A</div>
               )}
-              <div className={`message-content ${msg.role === "user" ? "user-content" : "model-content"}`}>
+              <div
+                className={`message-content ${msg.role === "user" ? "user-content" : "model-content"}`}
+              >
                 <p>{msg.text}</p>
                 <span className="time">
-                  {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  {new Date(msg.timestamp).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
                 </span>
               </div>
               {msg.role === "user" && (
@@ -94,7 +127,9 @@ export default function ChatScreen() {
               <div className="avatar model-avatar">A</div>
               <div className="message-content model-content">
                 <div className="typing-indicator">
-                  <span></span><span></span><span></span>
+                  <span></span>
+                  <span></span>
+                  <span></span>
                 </div>
               </div>
             </div>
@@ -119,14 +154,21 @@ export default function ChatScreen() {
             disabled={!inputValue.trim() || isLoading}
             className={inputValue.trim() ? "active" : ""}
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <line x1="22" y1="2" x2="11" y2="13"></line>
               <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
             </svg>
           </button>
         </div>
         <div className="disclaimer">
-          ash can make mistakes. Consider verifying important information.
+          Ash can make mistakes. Consider verifying important information.
         </div>
       </footer>
     </div>

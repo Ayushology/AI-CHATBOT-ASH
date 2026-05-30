@@ -8,7 +8,11 @@ const generateResponse = require('./src/services/ai.service')
 
 
 const httpServer = createServer(app);
-const io = new Server(httpServer, { /* options */ });
+const io = new Server(httpServer, {
+    cors : {
+        origin : "http://localhost:5173"
+    }
+ });
 
 const chatHistory = [
 
@@ -34,21 +38,43 @@ io.on("connection", (socket) => {
 
     // ?? ai-message-event
 
-    socket.on("ai-message",async(data)=>{
+  socket.on("ai-message", async (data) => {
+    try {
         chatHistory.push({
-            role : "user",
-            parts : [{text : data}]
-        })
+            role: "user",
+            parts: [{ text: data }]
+        });
+        
+        // This is the line that throws the error if the quota is exceeded
         const response = await generateResponse(chatHistory);
+        
         chatHistory.push({
-            role:"model",
-            parts : [{text : response}]
-        })
-        console.log("ai-response",response);
-        socket.emit("ai-message-response",{response}) 
-    })
+            role: "model",
+            parts: [{ text: response }]
+        });
+        
+        console.log("ai-response", response);
+        socket.emit("ai-message-response", response); 
 
+    } catch (error) {
+        console.error("AI API Error:", error.message);
+        
+        // If it's a rate limit error, tell the user gracefully
+        if (error.status === 429) {
+            socket.emit(
+                "ai-message-response", 
+                "I'm receiving too many messages right now. Please wait a minute and try again."
+            );
+        } else {
+            socket.emit(
+                "ai-message-response", 
+                "Sorry, I encountered an internal error processing your request."
+            );
+        }
+    }
+}
+)
 });
 httpServer.listen(3000,()=>{
     console.log("Server is running on port 3000");
-})  
+})
