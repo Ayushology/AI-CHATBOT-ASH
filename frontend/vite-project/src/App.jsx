@@ -1,7 +1,6 @@
-import ChatScreen from "./components/ChatScreen";
+import React from 'react';
+import ChatScreen from './components/ChatScreen';
 
-function App() {
+export default function App() {
   return <ChatScreen />;
 }
-
-export default App;
