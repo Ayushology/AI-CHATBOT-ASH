@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import "../styles/ChatScreen.css";
+import { MarkdownMessage } from "./MarkdownMessage"; // <-- Added import
 import { io } from "socket.io-client";
 
 export default function ChatScreen() {
@@ -108,7 +109,15 @@ export default function ChatScreen() {
               <div
                 className={`message-content ${msg.role === "user" ? "user-content" : "model-content"}`}
               >
-                <p>{msg.text}</p>
+                
+                {/* --- THIS IS THE UPDATED SECTION --- */}
+                {msg.role === "user" ? (
+                  <p className="whitespace-pre-wrap">{msg.text}</p>
+                ) : (
+                  <MarkdownMessage content={msg.text} />
+                )}
+                {/* ----------------------------------- */}
+
                 <span className="time">
                   {new Date(msg.timestamp).toLocaleTimeString([], {
                     hour: "2-digit",

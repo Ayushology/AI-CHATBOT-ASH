@@ -4,7 +4,7 @@ const ai = new GoogleGenAI({});
 
 async function generateResponse(historyTimeline) {
     const response = await ai.models.generateContent({
-        model : "gemini-3.5-flash",
+        model : "gemini-3.1-flash-lite",
         contents: historyTimeline
     })
     return response.text
